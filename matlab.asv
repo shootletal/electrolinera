@@ -80,13 +80,12 @@ function m= funMonteCarlo(numMonteCarlo, TablaHistorico)
             disp("-------------------------------------------------------------------")
             
             %Inicia las incertidumbres para los vehiculos que necesitan ser
-            %cargados 
-            aux= (incerNeedCharger-1);
+            %cargados
             for  iteracion=1:1:incerNeedCharger             
                 iteracion
                 % Obtiene la incertidumbre de cuantos vehiculos necesitan
                 % ser cargados en la electrolinera de carga rapida
-                needchargerFast=randi([1 aux]);
+                needchargerFast=randi([1 incerNeedCharger]);
                 matrizRapida = funElectrolineraMarca(iteracion, TablaHistorico.Hora(contaHorario) ,TablaHistorico.Calle(contaHorario), 1, "Rapida" ,needchargerFast)
                 
                 % Obtiene la incertidumbre de cuantos vehiculos necesitan
@@ -119,7 +118,7 @@ function matrizTipoElectrolinera = funElectrolineraMarca(numIteracion, horaCalle
     disp("-------------------------------------------------------------------")
     disp(strcat("Se realizá la carga en una electrolinera ", tipoElectrolinera ," y seran cargados ",int2str(numNeedchargerElectrolinera)))
     disp("-------------------------------------------------------------------")
-    matriz = []; potenciaElectrolinera = 0; potenciEv = [];
+    matriz = []; potenciaElectrolinera = 0;
     for contaNeedChargerElectrolinera = 1:1: numNeedchargerElectrolinera   
         incerMarca=randi([1 length(infoDeVe)]);
         disp(strcat("El vehiculo ",num2str(contaNeedChargerElectrolinera)  ," es de marca: ", infoDeVe(1,incerMarca)));
@@ -146,17 +145,18 @@ function matrizTipoElectrolinera = funElectrolineraMarca(numIteracion, horaCalle
                 [tiempoCargaVehiculo, incerPorcentajeBateria , faltanteBateria ] = funTiempoCarga( infoDeVe(2,incerMarca), 110, 70 );  %Confirmar datos de la electrolinera Semi para BYD
             end
             
-        end
-        potenciaElectrolinera = potenciaElectrolinera + str2num(infoDeVe(2,incerMarca));
-        matriz(contaNeedChargerElectrolinera,:) = [contaNeedChargerElectrolinera,potenciaElectrolinera,incerPorcentajeBateria,faltanteBateria, tiempoCargaVehiculo];       
+        end       
+        matriz(contaNeedChargerElectrolinera,:) = [contaNeedChargerElectrolinera,incerPorcentajeBateria,faltanteBateria, tiempoCargaVehiculo];       
         marcas(contaNeedChargerElectrolinera,1) = infoDeVe(1,incerMarca);
         potenciEv(contaNeedChargerElectrolinera,1) = str2num(infoDeVe(2,incerMarca));
-            
+        potenciaElectrolinera(contaNeedChargerElectrolinera,1) = potenciaElectrolinera + str2num(infoDeVe(2,incerMarca));
+        
+        
     end
     %% Aqui armas la primera tabla 
     %varNames = {"IteracionVehiculo", "Marca","Potencia Vehiculo","Capacidad de electrolinea","Potencia Electrolinera","Incertidumbre Bateria", "Faltante Bateria","Tiempo Carga Vehiculo" };
     varNames = {'iteracion Vehiculo','Marca','Potencia Vehiculo','Capacidad Electrolinera','Incertidumbre Bateria','Faltante Bateria','Tiempo Carga Vehiculo'};
-    matrizTipoElectrolinera = table(matriz(:,1), marcas,potenciEv, matriz(:,2), matriz(:,3), matriz(:,4),matriz(:,5),'VariableNames',varNames);
+    matrizTipoElectrolinera = table(matriz(:,1), marcas,potenciEv,potenciaElectrolinera, matriz(:,2), matriz(:,3), matriz(:,4),'VariableNames',varNames);
 end 
 
 %%
