@@ -21,7 +21,7 @@ numMonteCarlo=input("Indique el número de iteracciones para el Montecarlo: ");
 %variables iniciales 
 %Marcas de los vehículos eléctricos con sus respectivas caracteristicas  
 global infoDeVe
-infoDeVe=["Nissan" "Renault" "Toyota" "BYD";112 65 69 300];% kW ...........corregir caracteristicas de potencia del ev
+infoDeVe=["Nissan" "Renault" "Toyota" "BYD";112 65 69 300;24 22 20 20];% kW ...........corregir caracteristicas de potencia del ev
 
 global tablaDeIncertidumbre;
 
@@ -29,7 +29,7 @@ global tablaDeIncertidumbre;
 %Selección del area de análisis (el programa)
 if areaCiudad==1 
     numCallesAnalizar = input('Ingrese numero de calles a analizar: ');
-    w=funExcelHistorico("HistoricoCentro.xlsx", numCallesAnalizar, numMonteCarlo);   
+    w=funExcelHistorico("HistoricoCentro.xlsx", numCallesAnalizar, numMonteCarlo);
  elseif areaCiudad==2
     numKmAnalizar = input('Ingrese numero de kilometros a analizar: ');
     w=funExcelHistorico("HistoricoPeriferia.xlsx", numKmAnalizar, numMonteCarlo);
@@ -41,7 +41,7 @@ end
 %
 %llamar al Excel y analizar los datos de entrada para las diferentes areas
 %de la ciudad 
-function [dataHistorico] = funExcelHistorico(nombreArchivo, numTotalCalles, numMonteCarlo)
+function dataHistorico = funExcelHistorico(nombreArchivo, numTotalCalles, numMonteCarlo)
     
     for contaCalles = 1:1:numTotalCalles
         
@@ -49,6 +49,7 @@ function [dataHistorico] = funExcelHistorico(nombreArchivo, numTotalCalles, numM
         
         funMonteCarlo(numMonteCarlo, TablaHistorico);
     end
+    dataHistorico = 1;
 end
 
 %%
@@ -59,52 +60,57 @@ function m= funMonteCarlo(numMonteCarlo, TablaHistorico)
     %global nodos; global carga; global tr;
     %Llamar a la función que analizo las calles candidatas en una determinada
     %zona de la ciudad
-    matrizRapida = [];
-    matrizSemi = [];
-    [a b] = size(TablaHistorico);
     
+    [a b] = size(TablaHistorico);
    %Numero de veces que se aplica montecarlo para cada calle o km
     for iterMonte=1:1:numMonteCarlo
-        
+        disp("-------------------------------------------------------------------")
+            disp(strcat("MonteCarlo iteracion "," ", int2str(iterMonte)));
+            disp("-------------------------------------------------------------------")
         % Este for va analizando los datos por cada hora con sus repectivo
         % flujo vehicular e incertidumbres 
+        celdaExcel = 1;
         for contaHorario=1:1:a
+            horaAnalisis = datestr(TablaHistorico.Hora(contaHorario),'HH:MM AM');
             flujo = TablaHistorico.Flujo(contaHorario);
-            numEv = round(flujo * 0.10)
+            numEv = round(flujo * 0.10);
             %Cuantos vehiculos electricos necesitan ser cargados, para lo cual obtiene aleatorio de 0 a numEv
-            incerNeedCharger = randi([0 numEv])
+            incerNeedCharger = randi([0 numEv]);
             disp("-------------------------------------------------------------------")
-            disp(strcat("Analisis de la calle: ", TablaHistorico.Calle(contaHorario), "a las ", datestr(TablaHistorico.Hora(contaHorario),'HH:MM AM')))
+            disp(strcat("Analisis de la calle: ", TablaHistorico.Calle(contaHorario), "a las ", horaAnalisis))
             disp(strcat("Existen un total de ",num2str(numEv)," de vehiculos electricos" ))
             disp(strcat("Necesitan ser cargados ",num2str(incerNeedCharger)," del total"))
             disp("-------------------------------------------------------------------")
+             
             
-            %Inicia las incertidumbres para los vehiculos que necesitan ser
-            %cargados 
-            aux= (incerNeedCharger-1);
+            varNames = {'Escenarios','Calle','Hora','Marca','Potencia Vehiculo','Capacidad Bateria','Incertidumbre Bateria','Faltante Bateria'};
+            sizetable = [incerNeedCharger length(varNames)];
+            varTypes = {'double','string','string','string','double','double','double','double'};
+            matrizVehiculo = funTable(sizetable,varTypes,varNames);
+            
+            
             for  iteracion=1:1:incerNeedCharger             
-                iteracion
                 % Obtiene la incertidumbre de cuantos vehiculos necesitan
                 % ser cargados en la electrolinera de carga rapida
-                needchargerFast=randi([1 aux]);
-                matrizRapida = funElectrolineraMarca(iteracion, TablaHistorico.Hora(contaHorario) ,TablaHistorico.Calle(contaHorario), 1, "Rapida" ,needchargerFast)
+                matrizVehiculo(iteracion,:) = funMarca(iteracion, horaAnalisis ,TablaHistorico.Calle(contaHorario));   
                 
-                % Obtiene la incertidumbre de cuantos vehiculos necesitan
-                % ser cargados en la electrolinera de carga Semi
-                needchargerSemi= randi([0 (incerNeedCharger - needchargerFast )]);
-                matrizSemi = funElectrolineraMarca(iteracion, TablaHistorico.Hora(contaHorario) ,TablaHistorico.Calle(contaHorario),2, "Semi" ,needchargerSemi)
-                pause
-                needchargerSlow = incerNeedCharger - needchargerFast - needchargerSemi;
-                disp(" ")
-                disp("-------------------------------------------------------------------")
-                disp(strcat(" Se cargaran en la oficina o casa ", num2str(needchargerSlow)," vehiculos"))
-                %
-                %horaDeCargaPorCalle(contadorCallesCandidatas), nombreDeCalleCandidata(contadorCallesCandidatas), flujoDeVe,1); 
-
-                %--------------------------------------  FIN DE LLMADO funMarca  -------------------------------------------- %
-                
-                disp(strcat("-----------FIN DE ITERACION Nº--",int2str(iteracion), " ----------"))
             end
+            matrizVehiculo
+            filename = strcat("IncertidumbreCalle",TablaHistorico.Calle(contaHorario),".xlsx");
+            sheetname = strcat("MonteCarlo"," ", int2str(iterMonte));
+               
+            if(celdaExcel == 1)            
+               writetable(matrizVehiculo,filename,'Sheet',sheetname);
+               celdaExcel = 2;
+            else
+                celda = strcat('A',int2str(celdaExcel));
+               writetable(matrizVehiculo,filename,'Sheet',sheetname,'Range',celda,'WriteVariableNames',false);
+            end
+            celdaExcel = celdaExcel+incerNeedCharger+1;
+            
+            %--------------------------------------  FIN DE LLMADO funMarca  -------------------------------------------- %
+            disp(strcat("-----------FIN DE ITERACION EN HORA--",horaAnalisis, " ----------"))
+            
         end  
     end 
     m=1;
@@ -113,81 +119,23 @@ end
 %%
 %Porcentaje de batería con el que cuenta el EV, considerando las
 %electrolineras rápidas y semi rapidas, fun 2 
-function matrizTipoElectrolinera = funElectrolineraMarca(numIteracion, horaCalleAnalizada, nombreCalleAnalizada, incerElectrolinera,tipoElectrolinera, numNeedchargerElectrolinera) 
+function vectorVehiculo = funMarca(numIteracion, horaCalleAnalizada, nombreCalleAnalizada) 
     global infoDeVe; 
+    %Obtiene incertidumbre de marca%
+    [x y]= size(infoDeVe);
     
-    disp("-------------------------------------------------------------------")
-    disp(strcat("Se realizá la carga en una electrolinera ", tipoElectrolinera ," y seran cargados ",int2str(numNeedchargerElectrolinera)))
-    disp("-------------------------------------------------------------------")
-    matriz = []; potenciaElectrolinera = 0; potenciEv = [];
-    for contaNeedChargerElectrolinera = 1:1: numNeedchargerElectrolinera   
-        incerMarca=randi([1 length(infoDeVe)]);
-        disp(strcat("El vehiculo ",num2str(contaNeedChargerElectrolinera)  ," es de marca: ", infoDeVe(1,incerMarca)));
-        
-        if incerElectrolinera == 1  %Electrolinera de carga Rapida        
-            if incerMarca == 1 %Representa a Nissan
-                [tiempoCargaVehiculo, incerPorcentajeBateria , faltanteBateria] = funTiempoCarga( infoDeVe(2,incerMarca), 110, 50 );  %Confirmar datos de la electrolinera Rapida para Nissan  
-            elseif incerMarca == 2  %Representa a Renault
-                [tiempoCargaVehiculo, incerPorcentajeBateria , faltanteBateria] = funTiempoCarga( infoDeVe(2,incerMarca), 110, 60 );  %Confirmar datos de la electrolinera Rapida para Renault
-            elseif incerMarca == 3 % Representa a Toyota
-                [tiempoCargaVehiculo, incerPorcentajeBateria , faltanteBateria] = funTiempoCarga( infoDeVe(2,incerMarca), 110, 80 );  %Confirmar datos de la electrolinera Rapida para Toyota
-            elseif incerMarca == 4 % Representa a BYD
-                [tiempoCargaVehiculo, incerPorcentajeBateria , faltanteBateria] = funTiempoCarga( infoDeVe(2,incerMarca), 110, 70 );  %Confirmar datos de la electrolinera Rapida para BYD
-            end
-                  
-        elseif incerElectrolinera == 2  %Electrolinera de carga Semi
-            if incerMarca == 1 %Representa a Nissan
-                [tiempoCargaVehiculo, incerPorcentajeBateria , faltanteBateria ] = funTiempoCarga( infoDeVe(2,incerMarca), 110, 70 );  %Confirmar datos de la electrolinera Semi para Nissan      
-            elseif incerMarca == 2  %Representa a Renault
-                [tiempoCargaVehiculo, incerPorcentajeBateria , faltanteBateria ] = funTiempoCarga( infoDeVe(2,incerMarca), 110, 70 );  %Confirmar datos de la electrolinera Semi para Renault
-            elseif incerMarca == 3 % Representa a Toyota
-                [tiempoCargaVehiculo, incerPorcentajeBateria , faltanteBateria ] = funTiempoCarga( infoDeVe(2,incerMarca), 110, 70 );  %Confirmar datos de la electrolinera Semi para Toyota
-            elseif incerMarca == 4 % Representa a BYD
-                [tiempoCargaVehiculo, incerPorcentajeBateria , faltanteBateria ] = funTiempoCarga( infoDeVe(2,incerMarca), 110, 70 );  %Confirmar datos de la electrolinera Semi para BYD
-            end
-            
-        end
-        potenciaElectrolinera = potenciaElectrolinera + str2num(infoDeVe(2,incerMarca));
-        matriz(contaNeedChargerElectrolinera,:) = [contaNeedChargerElectrolinera,potenciaElectrolinera,incerPorcentajeBateria,faltanteBateria, tiempoCargaVehiculo];       
-        marcas(contaNeedChargerElectrolinera,1) = infoDeVe(1,incerMarca);
-        potenciEv(contaNeedChargerElectrolinera,1) = str2num(infoDeVe(2,incerMarca));
-            
-    end
-    %% Aqui armas la primera tabla 
-    %varNames = {"IteracionVehiculo", "Marca","Potencia Vehiculo","Capacidad de electrolinea","Potencia Electrolinera","Incertidumbre Bateria", "Faltante Bateria","Tiempo Carga Vehiculo" };
-    varNames = {'iteracion Vehiculo','Marca','Potencia Vehiculo','Capacidad Electrolinera','Incertidumbre Bateria','Faltante Bateria','Tiempo Carga Vehiculo'};
-    matrizTipoElectrolinera = table(matriz(:,1), marcas,potenciEv, matriz(:,2), matriz(:,3), matriz(:,4),matriz(:,5),'VariableNames',varNames);
+    incerMarca=randi([1 y]);
+    vectorVehiculo = {};
+    
+    %Incertidumbre porcentaje de bateria del vehiculo%
+    incerPorcentajeBateria = randi([5 70]);
+    faltanteBateria = 100 - incerPorcentajeBateria;
+    %Respuesta de vector%
+    vectorVehiculo = {numIteracion, nombreCalleAnalizada, horaCalleAnalizada, infoDeVe(1,incerMarca), infoDeVe(2,incerMarca),infoDeVe(3,incerMarca), incerPorcentajeBateria, faltanteBateria};
 end 
 
 %%
-function [tiempoCargaVehiculo, incerPorcentajeBateria , faltanteBateria] = funTiempoCarga(potenciaVehiculo,  potenciaElectrolinera, tiempoElectrolinera)
-    
-    potenciaElectro = potenciaElectrolinera;
-    incerPorcentajeBateria = randi([5 70]); 
-    faltanteBateria = 100 - incerPorcentajeBateria;
-    
-    tiempoCargaMarca = (str2num(potenciaVehiculo)*potenciaElectrolinera)/tiempoElectrolinera; %Confirmar formula para tiempo de carga de vehiculo
-    tiempoCargaVehiculo = (faltanteBateria*tiempoCargaMarca)/100;  %Corregir la formula
-    
-    disp(strcat('El faltante de bateria es  ', num2str(faltanteBateria),' tiempo de carga es de  ', num2str(tiempoCargaVehiculo) ))
-    
-    
-end
-%%
 %funciones de ayuda para crear vectores con cantidad de espacios n 
-function vector=funVector(numEspacios,h)
-    for n=1:1:numEspacios
-        vector(n)=h;
-                
-    end
+function Tabla = funTable(sizetable, varTypes , varNames)
+    Tabla = table('Size',sizetable,'VariableTypes',varTypes, 'VariableNames',varNames);
 end
-
-%%
-function matriz=funMatriz(fila,columna, valor)
-    for n=1:1:filas
-        for m=1:1:columna
-            matriz(n,m)= valor;
-        end           
-    end
-end
-
