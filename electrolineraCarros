@@ -1,0 +1,29 @@
+maximize  f(x) = sum(i, c(i) * x(i))
+# c(i) conjunto de coeficientes
+# x(i) variable de decisión 
+subject to  sum(i, a(i) * x(i)) <= b
+# a(i)conjunto de coeficientes
+# b es una constante 
+model = xpress.problem(name="Optimization Model")
+
+# Variables de decisión
+x = model.addVariables(range(n), vartype=xpress.continuous)
+
+# Función objetivo
+model.setObjective(xpress.Sum(c[i] * x[i] for i in range(n)), sense=xpress.maximize)
+
+# Restricción
+model.addConstraint(xpress.Sum(a[i] * x[i] for i in range(n)) <= b)
+
+# Resolver el modelo
+model.solve()
+
+# Obtener los resultados
+if model.getProbStatus() == xpress.constants.PresolveStatus.Optimal:
+    optimal_solution = model.getSolution(x)
+    optimal_value = model.getObjVal()
+    print("Optimal solution:", optimal_solution)
+    print("Optimal value:", optimal_value)
+else:
+    print("No optimal solution found.")
+    

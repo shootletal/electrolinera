@@ -1,0 +1,27 @@
+!DECISION VARIABLES
+-Binary, X(i)          # Variable binaria para indicar si se instala una electrolinera en la ubicación i
+-Continuous, P(i,j)    # Potencia suministrada por la barra de distribución j a la electrolinera en la ubicación i
+
+!OBJECTIVE FUNCTION
+-Objective, Minimize, Z
+  -Sum(j, Sum(i, P(i,j))) + Sum(i, C(i)*X(i) + O(i)*X(i))
+
+!CONSTRAINTS
+-Forall(j,
+  -Sum(i, P(i,j)) <= P_max(j)
+)
+
+-Forall(i,
+  -Sum(j, P(i,j)) >= D(i)*X(i)
+)
+
+-Sum(i, C(i)*X(i) + O(i)*X(i)) <= C_gasolina
+
+!BOUND CONSTRAINTS
+-Forall(i,
+  -Binary, X(i)
+)
+
+-Forall(i,j,
+  -P(i,j) >= 0
+)
